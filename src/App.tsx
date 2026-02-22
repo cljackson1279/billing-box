@@ -14,6 +14,7 @@ import Uploads from "./pages/Uploads";
 import BillingRuns from "./pages/BillingRuns";
 import Invoices from "./pages/Invoices";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/billing" element={<BillingRuns />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
