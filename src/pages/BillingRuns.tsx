@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Play, CheckCircle2, Clock, AlertCircle, CalendarIcon, Loader2, DollarSign } from "lucide-react";
+import { Play, CheckCircle2, Clock, AlertCircle, CalendarIcon, Loader2, DollarSign, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -22,9 +23,11 @@ export default function BillingRuns() {
   const [periodStart, setPeriodStart] = useState<Date>(subDays(new Date(), 30));
   const [periodEnd, setPeriodEnd] = useState<Date>(new Date());
   const [running, setRunning] = useState(false);
+  const [generatingInvoices, setGeneratingInvoices] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: runs } = useQuery({
     queryKey: ["billing-runs"],
@@ -139,6 +142,32 @@ export default function BillingRuns() {
       {/* Results */}
       {lastResult && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              variant="hero"
+              size="sm"
+              disabled={generatingInvoices}
+              onClick={async () => {
+                setGeneratingInvoices(true);
+                try {
+                  const res = await supabase.functions.invoke("generate-invoices", {
+                    body: { action: "generate", billing_run_id: lastResult.runId },
+                  });
+                  if (res.error) throw new Error(res.error.message);
+                  if (res.data?.error) throw new Error(res.data.error);
+                  toast({ title: "Invoices generated", description: `${res.data.count} invoice(s) created.` });
+                  navigate("/invoices");
+                } catch (err) {
+                  toast({ title: "Generation failed", description: (err as Error).message, variant: "destructive" });
+                } finally {
+                  setGeneratingInvoices(false);
+                }
+              }}
+            >
+              {generatingInvoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Generate All Invoices
+            </Button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="shadow-card">
               <CardContent className="p-5">
