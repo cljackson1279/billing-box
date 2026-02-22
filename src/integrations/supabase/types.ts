@@ -411,6 +411,36 @@ export type Database = {
           },
         ]
       }
+      notification_prefs: {
+        Row: {
+          email_invoice_ready: boolean | null
+          email_reports_enabled: boolean | null
+          email_revenue_alerts: boolean | null
+          sms_enabled: boolean | null
+          sms_phone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          email_invoice_ready?: boolean | null
+          email_reports_enabled?: boolean | null
+          email_revenue_alerts?: boolean | null
+          sms_enabled?: boolean | null
+          sms_phone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          email_invoice_ready?: boolean | null
+          email_reports_enabled?: boolean | null
+          email_revenue_alerts?: boolean | null
+          sms_enabled?: boolean | null
+          sms_phone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_activities: {
         Row: {
           client_id: string
@@ -475,24 +505,95 @@ export type Database = {
           },
         ]
       }
-      organizations: {
+      org_settings: {
         Row: {
-          created_at: string | null
-          id: string
-          name: string
-          slug: string
+          default_billing_contact_email: string | null
+          default_currency: string | null
+          invoice_footer_note: string | null
+          invoice_prefix: string | null
+          organization_id: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-          slug: string
+          default_billing_contact_email?: string | null
+          default_currency?: string | null
+          invoice_footer_note?: string | null
+          invoice_prefix?: string | null
+          organization_id: string
+          updated_at?: string | null
         }
         Update: {
+          default_billing_contact_email?: string | null
+          default_currency?: string | null
+          invoice_footer_note?: string | null
+          invoice_prefix?: string | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+          state: string | null
+          stripe_customer_id: string | null
+          subscription_current_period_end: string | null
+          subscription_status: string | null
+          timezone: string | null
+          updated_at: string | null
+          zip: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string | null
           id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+          state?: string | null
+          stripe_customer_id?: string | null
+          subscription_current_period_end?: string | null
+          subscription_status?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
           name?: string
           slug?: string
+          state?: string | null
+          stripe_customer_id?: string | null
+          subscription_current_period_end?: string | null
+          subscription_status?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          zip?: string | null
         }
         Relationships: []
       }
@@ -610,22 +711,37 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
+          email: string | null
+          full_name: string | null
           id: string
           organization_id: string | null
+          phone: string | null
           role: string | null
+          updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
+          full_name?: string | null
           id: string
           organization_id?: string | null
+          phone?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
+          full_name?: string | null
           id?: string
           organization_id?: string | null
+          phone?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
