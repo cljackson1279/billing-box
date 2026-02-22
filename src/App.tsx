@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Pricing from "./pages/Pricing";
+import Success from "./pages/Success";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Uploads from "./pages/Uploads";
@@ -25,6 +27,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/success" element={<Success />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route element={<AppLayout />}>
