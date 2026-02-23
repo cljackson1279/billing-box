@@ -200,21 +200,27 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          notes: string | null
           organization_id: string
+          phone: string | null
         }
         Insert: {
           contact_email?: string | null
           created_at?: string | null
           id?: string
           name: string
+          notes?: string | null
           organization_id: string
+          phone?: string | null
         }
         Update: {
           contact_email?: string | null
           created_at?: string | null
           id?: string
           name?: string
+          notes?: string | null
           organization_id?: string
+          phone?: string | null
         }
         Relationships: [
           {
@@ -715,7 +721,9 @@ export type Database = {
           created_at: string | null
           email: string | null
           full_name: string | null
+          has_completed_onboarding: boolean | null
           id: string
+          onboarding_progress: Json | null
           organization_id: string | null
           phone: string | null
           role: string | null
@@ -726,7 +734,9 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id: string
+          onboarding_progress?: Json | null
           organization_id?: string | null
           phone?: string | null
           role?: string | null
@@ -737,7 +747,9 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id?: string
+          onboarding_progress?: Json | null
           organization_id?: string | null
           phone?: string | null
           role?: string | null

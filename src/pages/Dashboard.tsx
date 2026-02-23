@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 const PIE_COLORS = [
   "hsl(174 72% 36%)",
@@ -88,6 +89,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      <OnboardingChecklist />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
