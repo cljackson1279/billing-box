@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Play, CheckCircle2, Clock, AlertCircle, CalendarIcon, Loader2, DollarSign, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Play, CheckCircle2, Clock, AlertCircle, CalendarIcon, Loader2, DollarSign, FileText, RotateCcw, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,19 @@ const statusConfig = {
   processing: { icon: Loader2, className: "text-primary", bg: "bg-primary/10" },
   pending: { icon: Clock, className: "text-revenue", bg: "bg-revenue/10" },
   error: { icon: AlertCircle, className: "text-destructive", bg: "bg-destructive/10" },
+};
+
+const chargeTypeBadge: Record<string, { label: string; className: string }> = {
+  storage: { label: "Storage", className: "bg-blue-100 text-blue-700" },
+  receiving: { label: "Receiving", className: "bg-purple-100 text-purple-700" },
+  pick: { label: "Pick", className: "bg-green-100 text-green-700" },
+  picking: { label: "Pick", className: "bg-green-100 text-green-700" },
+  pack: { label: "Pack", className: "bg-teal-100 text-teal-700" },
+  packing: { label: "Pack", className: "bg-teal-100 text-teal-700" },
+  kitting: { label: "Kitting", className: "bg-indigo-100 text-indigo-700" },
+  special: { label: "Special", className: "bg-orange-100 text-orange-700" },
+  returns: { label: "Returns", className: "bg-red-100 text-red-700" },
+  monthly_minimum: { label: "Min. Fee", className: "bg-amber-100 text-amber-700" },
 };
 
 export default function BillingRuns() {
@@ -69,7 +83,10 @@ export default function BillingRuns() {
       if (res.data?.error) throw new Error(res.data.error);
       setLastResult(res.data);
       queryClient.invalidateQueries({ queryKey: ["billing-runs"] });
-      toast({ title: "Billing run complete", description: `$${res.data.totalExpected.toLocaleString()} in recoverable revenue identified across ${res.data.chargeCount} charges.` });
+      toast({
+        title: "Billing run complete",
+        description: `$${res.data.totalExpected.toLocaleString()} in recoverable revenue identified across ${res.data.chargeCount} charges.`,
+      });
     } catch (err) {
       toast({ title: "Billing run failed", description: (err as Error).message, variant: "destructive" });
     } finally {
@@ -87,6 +104,11 @@ export default function BillingRuns() {
     chargesByClient[c.client_id].charges.push(c);
     chargesByClient[c.client_id].total += c.expected_charge || 0;
   }
+
+  // Breakdown summary
+  const breakdown = lastResult?.breakdown || {};
+  const returnTotal = breakdown["returns"] || 0;
+  const minimumTotal = breakdown["monthly_minimum"] || 0;
 
   return (
     <div className="space-y-6">
@@ -168,7 +190,9 @@ export default function BillingRuns() {
               Generate All Invoices
             </Button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="shadow-card">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
@@ -198,12 +222,25 @@ export default function BillingRuns() {
             <Card className="shadow-card">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-4.5 w-4.5 text-success" />
+                  <div className="h-9 w-9 rounded-lg bg-red-100 flex items-center justify-center">
+                    <RotateCcw className="h-4.5 w-4.5 text-red-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-card-foreground">{lastResult.chargeCount}</div>
-                    <div className="text-xs text-muted-foreground">Charges Calculated</div>
+                    <div className="text-2xl font-bold text-card-foreground">${returnTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-muted-foreground">Returns Charges</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-card">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <TrendingDown className="h-4.5 w-4.5 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-card-foreground">${minimumTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-muted-foreground">Monthly Minimums Applied</div>
                   </div>
                 </div>
               </CardContent>
@@ -233,17 +270,24 @@ export default function BillingRuns() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {group.charges.map((ch: any) => (
-                      <TableRow key={ch.id}>
-                        <TableCell className="capitalize font-medium">{ch.charge_type}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs max-w-xs truncate">{ch.description}</TableCell>
-                        <TableCell className="text-right">{ch.quantity?.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${ch.unit_rate?.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-medium">${ch.expected_charge?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">${(ch.billed_charge || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-semibold text-revenue">${(ch.expected_charge - (ch.billed_charge || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      </TableRow>
-                    ))}
+                    {group.charges.map((ch: any) => {
+                      const badge = chargeTypeBadge[ch.charge_type] || { label: ch.charge_type, className: "bg-gray-100 text-gray-700" };
+                      return (
+                        <TableRow key={ch.id}>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-xs max-w-xs truncate">{ch.description}</TableCell>
+                          <TableCell className="text-right">{ch.quantity?.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${ch.unit_rate?.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">${ch.expected_charge?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">${(ch.billed_charge || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right font-semibold text-revenue">${(ch.expected_charge - (ch.billed_charge || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>

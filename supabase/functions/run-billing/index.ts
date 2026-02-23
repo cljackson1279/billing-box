@@ -192,6 +192,70 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- RETURNS CHARGES ---
+    const { data: returns } = await adminClient
+      .from("returns_log")
+      .select("*")
+      .eq("organization_id", orgId)
+      .in("client_id", clientIds)
+      .gte("return_date", period_start)
+      .lte("return_date", period_end);
+
+    for (const ret of returns || []) {
+      const rate = ratesByClient[ret.client_id];
+      if (!rate) continue;
+      const units = ret.units_returned || 0;
+      const feePerUnit = rate.return_fee_per_unit || 0;
+      const feePerOrder = rate.return_fee_per_order || 0;
+      // Use per-unit if set, otherwise per-order
+      const expected = feePerUnit > 0 ? units * feePerUnit : feePerOrder;
+      if (expected > 0) {
+        charges.push({
+          organization_id: orgId,
+          billing_run_id: run.id,
+          client_id: ret.client_id,
+          charge_type: "returns",
+          description: feePerUnit > 0
+            ? `Returns: ${units} units @ $${feePerUnit}/unit${ret.order_id ? ` (Order ${ret.order_id})` : ""}`
+            : `Returns: 1 order @ $${feePerOrder}${ret.order_id ? ` (Order ${ret.order_id})` : ""}`,
+          quantity: feePerUnit > 0 ? units : 1,
+          unit_rate: feePerUnit > 0 ? feePerUnit : feePerOrder,
+          expected_charge: expected,
+          billed_charge: 0,
+          reference_id: ret.id,
+        });
+      }
+    }
+
+    // --- MONTHLY MINIMUM CHARGES ---
+    // Group charges by client and check against minimum
+    const chargesByClient: Record<string, number> = {};
+    for (const c of charges) {
+      chargesByClient[c.client_id] = (chargesByClient[c.client_id] || 0) + (c.expected_charge || 0);
+    }
+
+    for (const clientId of clientIds) {
+      const rate = ratesByClient[clientId];
+      if (!rate?.monthly_minimum_fee) continue;
+      const minimum = Number(rate.monthly_minimum_fee);
+      const clientTotal = chargesByClient[clientId] || 0;
+      if (clientTotal < minimum) {
+        const shortfall = minimum - clientTotal;
+        charges.push({
+          organization_id: orgId,
+          billing_run_id: run.id,
+          client_id: clientId,
+          charge_type: "monthly_minimum",
+          description: `Monthly Service Minimum: $${minimum.toFixed(2)} guaranteed (actual $${clientTotal.toFixed(2)})`,
+          quantity: 1,
+          unit_rate: shortfall,
+          expected_charge: shortfall,
+          billed_charge: 0,
+          reference_id: null,
+        });
+      }
+    }
+
     // Insert charges in batches
     if (charges.length > 0) {
       const batchSize = 500;
@@ -203,12 +267,74 @@ Deno.serve(async (req) => {
     }
 
     const totalExpected = charges.reduce((s, c) => s + (c.expected_charge || 0), 0);
-    const totalMissing = totalExpected; // MVP: all expected is "missing" (not yet billed)
+    const totalMissing = totalExpected;
 
     await adminClient
       .from("billing_runs")
       .update({ status: "completed", total_expected_revenue: totalExpected, total_missing_revenue: totalMissing })
       .eq("id", run.id);
+
+    // --- UPDATE CLIENT HEALTH SCORES ---
+    for (const clientId of clientIds) {
+      const clientCharges = charges.filter(c => c.client_id === clientId);
+      const totalRecovered = clientCharges.reduce((s, c) => s + (c.expected_charge || 0), 0);
+      const recoveryRate = totalExpected > 0 ? Math.min(100, (totalRecovered / totalExpected) * 100) : 100;
+      const leakRisk = Math.max(0, 100 - recoveryRate);
+
+      await adminClient.from("client_health_scores").upsert({
+        organization_id: orgId,
+        client_id: clientId,
+        recovery_rate: recoveryRate,
+        leak_risk_score: leakRisk,
+        last_billed_at: new Date().toISOString(),
+        total_recovered: totalRecovered,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "organization_id,client_id" });
+    }
+
+    // --- GENERATE REVENUE ALERTS ---
+    // Clear old unresolved alerts for this org
+    await adminClient.from("revenue_alerts")
+      .update({ is_resolved: true, resolved_at: new Date().toISOString() })
+      .eq("organization_id", orgId)
+      .eq("is_resolved", false);
+
+    // Create new alerts for clients with significant leakage or minimums triggered
+    const alerts: any[] = [];
+    for (const clientId of clientIds) {
+      const rate = ratesByClient[clientId];
+      const clientChargeList = charges.filter(c => c.client_id === clientId);
+
+      // Monthly minimum alert
+      const minCharge = clientChargeList.find(c => c.charge_type === "monthly_minimum");
+      if (minCharge) {
+        alerts.push({
+          organization_id: orgId,
+          client_id: clientId,
+          alert_type: "monthly_minimum",
+          leak_amount: minCharge.expected_charge,
+          description: minCharge.description,
+        });
+      }
+
+      // Returns unbilled alert (if returns exist but no return rate set)
+      const hasReturns = (returns || []).some(r => r.client_id === clientId);
+      const hasReturnRate = (rate?.return_fee_per_unit || 0) > 0 || (rate?.return_fee_per_order || 0) > 0;
+      if (hasReturns && !hasReturnRate) {
+        const returnCount = (returns || []).filter(r => r.client_id === clientId).reduce((s, r) => s + (r.units_returned || 0), 0);
+        alerts.push({
+          organization_id: orgId,
+          client_id: clientId,
+          alert_type: "returns_unbilled",
+          leak_amount: 0,
+          description: `${returnCount} returned units with no return fee configured`,
+        });
+      }
+    }
+
+    if (alerts.length > 0) {
+      await adminClient.from("revenue_alerts").insert(alerts);
+    }
 
     // Get client names for response
     const { data: clients } = await adminClient
@@ -221,8 +347,21 @@ Deno.serve(async (req) => {
 
     const enrichedCharges = charges.map(c => ({ ...c, client_name: clientMap[c.client_id] || "Unknown" }));
 
+    // Breakdown by charge type
+    const breakdown: Record<string, number> = {};
+    for (const c of charges) {
+      breakdown[c.charge_type] = (breakdown[c.charge_type] || 0) + (c.expected_charge || 0);
+    }
+
     return new Response(
-      JSON.stringify({ runId: run.id, totalExpected, totalMissing, chargeCount: charges.length, charges: enrichedCharges }),
+      JSON.stringify({
+        runId: run.id,
+        totalExpected,
+        totalMissing,
+        chargeCount: charges.length,
+        breakdown,
+        charges: enrichedCharges,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

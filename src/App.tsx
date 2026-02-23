@@ -15,6 +15,7 @@ import BillingRuns from "./pages/BillingRuns";
 import Invoices from "./pages/Invoices";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import ClientPortal from "./pages/ClientPortal";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,8 @@ const App = () => (
           <Route path="/success" element={<Success />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          {/* Public client portal — token-based, no auth required */}
+          <Route path="/portal" element={<ClientPortal />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/clients" element={<Clients />} />

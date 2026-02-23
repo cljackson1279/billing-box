@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, MoreHorizontal, Mail, Phone, Edit, Trash2, DollarSign, FileText, Download } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Mail, Phone, Edit, Trash2, DollarSign, FileText, Download, ExternalLink, Copy, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ export default function Clients() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ratesDialogOpen, setRatesDialogOpen] = useState(false);
   const [detailClientId, setDetailClientId] = useState<string | null>(null);
+  const [generatingPortalLink, setGeneratingPortalLink] = useState<string | null>(null);
   const [form, setForm] = useState<ClientForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -218,6 +219,28 @@ export default function Clients() {
     setRatesDialogOpen(true);
   };
 
+  const generatePortalLink = async (clientId: string) => {
+    setGeneratingPortalLink(clientId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("client-portal", {
+        body: { action: "generate_link", client_id: clientId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      const portalUrl = res.data.url;
+      await navigator.clipboard.writeText(portalUrl).catch(() => {});
+      toast({
+        title: "Portal link generated!",
+        description: "Link copied to clipboard. Share it with your client.",
+      });
+    } catch (err) {
+      toast({ title: "Error generating portal link", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setGeneratingPortalLink(null);
+    }
+  };
+
   const exportCSV = () => {
     if (!clients.length) return;
     const headers = ["Name", "Contact Email", "Phone", "Notes", "Created"];
@@ -313,6 +336,15 @@ export default function Clients() {
                 <div className="flex gap-2 pt-2">
                   <Button size="sm" variant="outline" onClick={() => openEdit(detailClient)}><Edit className="h-3.5 w-3.5 mr-1" />Edit</Button>
                   <Button size="sm" variant="outline" onClick={() => openRates(detailClient.id)}><DollarSign className="h-3.5 w-3.5 mr-1" />Set Rates</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generatePortalLink(detailClient.id)}
+                    disabled={generatingPortalLink === detailClient.id}
+                  >
+                    {generatingPortalLink === detailClient.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-1" />}
+                    Client Portal Link
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -533,6 +565,13 @@ export default function Clients() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setDetailClientId(client.id)}>
                             <FileText className="h-3.5 w-3.5 mr-2" /> View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => generatePortalLink(client.id)}
+                            disabled={generatingPortalLink === client.id}
+                          >
+                            {generatingPortalLink === client.id ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-2" />}
+                            Generate Portal Link
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive"
