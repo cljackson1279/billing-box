@@ -28,8 +28,20 @@ export default function Clients() {
 
   const addClient = useMutation({
     mutationFn: async ({ name, email }: { name: string; email: string }) => {
-      const { data: orgId } = await supabase.rpc("get_user_org_id");
-      if (!orgId) throw new Error("No organization found. Please set up your organization first.");
+      let { data: orgId } = await supabase.rpc("get_user_org_id");
+      if (!orgId) {
+        // Auto-create an organization for the user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated.");
+        const { data: newOrg, error: orgErr } = await supabase.from("organizations").insert({
+          name: "My Organization", slug: `org-${user.id.slice(0, 8)}`,
+        }).select("id").single();
+        if (orgErr || !newOrg) throw new Error("Failed to create organization.");
+        orgId = newOrg.id;
+        await supabase.from("user_profiles").upsert({
+          id: user.id, organization_id: orgId, email: user.email, updated_at: new Date().toISOString(),
+        });
+      }
       const { error } = await supabase.from("clients").insert({
         name,
         contact_email: email || null,
