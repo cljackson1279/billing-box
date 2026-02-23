@@ -144,16 +144,19 @@ export default function Settings() {
     let orgId = org.id;
 
     if (!orgId) {
-      // Create new organization and link to user profile
+      // Create new organization via edge function (bypasses RLS for initial creation)
       const slug = org.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "my-org";
-      const { data: newOrg, error: createErr } = await supabase.from("organizations").insert({
-        name: org.name || "My Organization", slug, address_line1: org.address_line1, address_line2: org.address_line2,
-        city: org.city, state: org.state, zip: org.zip, country: org.country, timezone: org.timezone,
-      }).select().single();
-      if (createErr || !newOrg) { toast({ title: "Error", description: createErr?.message || "Failed to create organization", variant: "destructive" }); setSaving(false); return; }
-      orgId = newOrg.id;
-      // Link user profile to org
-      await supabase.from("user_profiles").upsert({ id: userId!, organization_id: orgId, email: userEmail, updated_at: new Date().toISOString() });
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("create-organization", {
+        body: {
+          name: org.name || "My Organization", slug, address_line1: org.address_line1, address_line2: org.address_line2,
+          city: org.city, state: org.state, zip: org.zip, country: org.country, timezone: org.timezone,
+        },
+      });
+      if (fnError || !fnData?.id) {
+        const errMsg = fnError?.message || fnData?.error || "Failed to create organization";
+        toast({ title: "Error", description: errMsg, variant: "destructive" }); setSaving(false); return;
+      }
+      orgId = fnData.id;
       setOrg(prev => ({ ...prev, id: orgId }));
     } else {
       const { error } = await supabase.from("organizations").update({
