@@ -358,6 +358,10 @@ export type Database = {
           pdf_storage_path: string | null
           period_end: string | null
           period_start: string | null
+          qb_invoice_id: string | null
+          qb_invoice_number: string | null
+          qb_sync_status: string | null
+          qb_synced_at: string | null
           status: string | null
           subtotal: number | null
           tax_amount: number | null
@@ -373,6 +377,10 @@ export type Database = {
           pdf_storage_path?: string | null
           period_end?: string | null
           period_start?: string | null
+          qb_invoice_id?: string | null
+          qb_invoice_number?: string | null
+          qb_sync_status?: string | null
+          qb_synced_at?: string | null
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -388,6 +396,10 @@ export type Database = {
           pdf_storage_path?: string | null
           period_end?: string | null
           period_start?: string | null
+          qb_invoice_id?: string | null
+          qb_invoice_number?: string | null
+          qb_sync_status?: string | null
+          qb_synced_at?: string | null
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -602,6 +614,95 @@ export type Database = {
           zip?: string | null
         }
         Relationships: []
+      }
+      quickbooks_connections: {
+        Row: {
+          access_token: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          organization_id: string
+          refresh_token: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          organization_id: string
+          refresh_token?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          organization_id?: string
+          refresh_token?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quickbooks_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quickbooks_customer_map: {
+        Row: {
+          client_id: string
+          id: string
+          mapped_at: string | null
+          organization_id: string
+          qb_customer_id: string
+          qb_customer_name: string | null
+        }
+        Insert: {
+          client_id: string
+          id?: string
+          mapped_at?: string | null
+          organization_id: string
+          qb_customer_id: string
+          qb_customer_name?: string | null
+        }
+        Update: {
+          client_id?: string
+          id?: string
+          mapped_at?: string | null
+          organization_id?: string
+          qb_customer_id?: string
+          qb_customer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quickbooks_customer_map_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickbooks_customer_map_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       receiving_logs: {
         Row: {
