@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BarChart3, FileSpreadsheet, Shield, Zap, TrendingUp, DollarSign } from "lucide-react";
+import { ArrowRight, BarChart3, FileSpreadsheet, Shield, Zap, TrendingUp, DollarSign, CheckCircle2, XCircle, Link2 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
@@ -30,9 +30,10 @@ const features = [
     description: "Organization-level data isolation with row-level security. Your data stays yours.",
   },
   {
-    icon: Zap,
-    title: "Invoice Generation",
-    description: "One-click PDF and CSV invoices with professional formatting and automatic numbering.",
+    icon: Link2,
+    title: "Deep QuickBooks Integration",
+    description: "Invoices appear in QuickBooks automatically. Clients, line items, and charge types all mapped — zero double-entry.",
+    highlight: true,
   },
 ];
 
@@ -40,6 +41,39 @@ const stats = [
   { value: "$42K", label: "Avg. Revenue Recovered", sublabel: "per warehouse / year" },
   { value: "87%", label: "Billing Accuracy Boost", sublabel: "vs. manual processes" },
   { value: "3 min", label: "Upload to Invoice", sublabel: "end-to-end automation" },
+];
+
+const comparison = [
+  {
+    feature: "QuickBooks Integration",
+    dispatchbox: { value: "DEEP — invoices appear automatically", positive: true },
+    competitor: { value: "CSV export only", positive: false },
+  },
+  {
+    feature: "Revenue Recovery Engine",
+    dispatchbox: { value: "AI-powered gap detection", positive: true },
+    competitor: { value: "Manual review required", positive: false },
+  },
+  {
+    feature: "Automated Billing Runs",
+    dispatchbox: { value: "One-click, fully automated", positive: true },
+    competitor: { value: "Spreadsheet-based", positive: false },
+  },
+  {
+    feature: "Invoice Generation",
+    dispatchbox: { value: "Instant PDF & CSV invoices", positive: true },
+    competitor: { value: "Manual formatting", positive: false },
+  },
+  {
+    feature: "Built for 3PLs",
+    dispatchbox: { value: "Storage, pick, pack, receiving rates", positive: true },
+    competitor: { value: "Generic billing software", positive: false },
+  },
+  {
+    feature: "Price",
+    dispatchbox: { value: "$499/month flat", positive: true },
+    competitor: { value: "$800–$2,000+/month", positive: false },
+  },
 ];
 
 export default function Landing() {
@@ -57,6 +91,7 @@ export default function Landing() {
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How It Works</a>
+            <a href="#compare" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Compare</a>
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
           </div>
           <div className="flex items-center gap-3">
@@ -81,7 +116,7 @@ export default function Landing() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="animate-fade-in-up">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-6">
-                <Zap className="h-3.5 w-3.5" /> AI-Powered Revenue Recovery
+                <Zap className="h-3.5 w-3.5" /> AI-Powered Revenue Recovery for 3PLs
               </span>
             </div>
             <h1 className="animate-fade-in-up-delay-1 text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6">
@@ -93,6 +128,11 @@ export default function Landing() {
               DispatchBoxAI automates billing, identifies missed charges, and generates invoices
               for small 3PL warehouses — so you get paid for every pallet stored and every order shipped.
             </p>
+            {/* QB callout in hero */}
+            <div className="animate-fade-in-up-delay-2 inline-flex items-center gap-2 rounded-lg border border-[#2CA01C]/30 bg-[#2CA01C]/5 px-4 py-2 text-sm text-[#2CA01C] font-medium mb-8">
+              <CheckCircle2 className="h-4 w-4" />
+              DEEP QuickBooks integration — invoices appear automatically
+            </div>
             <div className="animate-fade-in-up-delay-3 flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/signup">
                 <Button variant="hero" size="lg" className="text-base px-8">
@@ -140,11 +180,22 @@ export default function Landing() {
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group relative p-6 rounded-xl border border-border bg-card shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-1"
+                className={`group relative p-6 rounded-xl border shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-1 ${
+                  (feature as any).highlight
+                    ? "border-[#2CA01C]/40 bg-[#2CA01C]/5 hover:bg-[#2CA01C]/10"
+                    : "border-border bg-card"
+                }`}
               >
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="h-5 w-5 text-primary" />
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 transition-colors ${
+                  (feature as any).highlight
+                    ? "bg-[#2CA01C]/20 group-hover:bg-[#2CA01C]/30"
+                    : "bg-primary/10 group-hover:bg-primary/20"
+                }`}>
+                  <feature.icon className={`h-5 w-5 ${(feature as any).highlight ? "text-[#2CA01C]" : "text-primary"}`} />
                 </div>
+                {(feature as any).highlight && (
+                  <span className="absolute top-4 right-4 text-xs font-semibold text-[#2CA01C] bg-[#2CA01C]/10 px-2 py-0.5 rounded-full">NEW</span>
+                )}
                 <h3 className="font-semibold text-lg mb-2 text-card-foreground">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </div>
@@ -168,7 +219,7 @@ export default function Landing() {
             {[
               { step: "01", title: "Upload Your Data", desc: "Drop your inventory, orders, and receiving CSVs. We auto-detect and map columns." },
               { step: "02", title: "Run Billing Engine", desc: "Our engine calculates every charge against your rate tables. See what you're owed." },
-              { step: "03", title: "Send Invoices", desc: "Generate professional PDF invoices and send them to clients with one click." },
+              { step: "03", title: "Sync to QuickBooks", desc: "Generate invoices and sync them directly to QuickBooks Online — no CSV export, no double-entry." },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className="text-6xl font-extrabold text-gradient-brand mb-4">{item.step}</div>
@@ -180,21 +231,66 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Comparison Table */}
+      <section id="compare" className="py-24">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Why 3PLs Choose
+              <span className="text-gradient-brand"> DispatchBoxAI</span>
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              See how we compare to generic warehouse management and billing tools.
+            </p>
+          </div>
+          <div className="max-w-3xl mx-auto overflow-hidden rounded-xl border border-border shadow-card">
+            <div className="grid grid-cols-3 bg-muted/50 px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <span>Feature</span>
+              <span className="text-center text-primary">DispatchBoxAI</span>
+              <span className="text-center">PackemWMS / Others</span>
+            </div>
+            {comparison.map((row, i) => (
+              <div
+                key={row.feature}
+                className={`grid grid-cols-3 px-6 py-4 items-center gap-4 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+              >
+                <span className="text-sm font-medium text-foreground">{row.feature}</span>
+                <div className="flex items-center gap-2 justify-center">
+                  <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                  <span className="text-xs text-foreground text-center">{row.dispatchbox.value}</span>
+                </div>
+                <div className="flex items-center gap-2 justify-center">
+                  <XCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground text-center">{row.competitor.value}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
-      <section className="py-24">
+      <section className="py-24 bg-gradient-navy text-primary-foreground">
         <div className="container">
           <div className="max-w-2xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Recover Your Revenue?
             </h2>
-            <p className="text-muted-foreground mb-8">
-              Join 3PL warehouses already using DispatchBoxAI to eliminate billing leakage.
+            <p className="opacity-70 mb-8">
+              Join 3PL warehouses already using DispatchBoxAI to eliminate billing leakage and sync invoices directly to QuickBooks.
             </p>
-            <Link to="/signup">
-              <Button variant="hero" size="lg" className="text-base px-10">
-                Get Started Free <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/signup">
+                <Button variant="hero" size="lg" className="text-base px-10">
+                  Get Started Free <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link to="/pricing">
+                <Button variant="hero-outline" size="lg" className="text-base px-10">
+                  See Pricing
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>

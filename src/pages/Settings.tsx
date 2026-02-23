@@ -10,10 +10,12 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   User, Building2, CreditCard, Bell, Shield, Database,
   Save, LogOut, ExternalLink, Download, AlertTriangle, Mail,
+  Plug, CheckCircle2, XCircle, RefreshCw, Loader2, Link2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -56,6 +58,20 @@ export default function Settings() {
     email_reports_enabled: true, email_invoice_ready: true, email_revenue_alerts: true, sms_enabled: false, sms_phone: "",
   });
   const [notifsOriginal, setNotifsOriginal] = useState(notifs);
+
+  // QuickBooks state
+  const [qbStatus, setQbStatus] = useState<{
+    connected: boolean;
+    company_name: string | null;
+    company_id: string | null;
+    sync_stats: { total: number; synced: number };
+  } | null>(null);
+  const [qbLoading, setQbLoading] = useState(false);
+  const [qbConnecting, setQbConnecting] = useState(false);
+  const [qbDisconnecting, setQbDisconnecting] = useState(false);
+  const [qbTesting, setQbTesting] = useState(false);
+  const [customerMappings, setCustomerMappings] = useState<any[]>([]);
+  const [mappingsLoading, setMappingsLoading] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -127,6 +143,97 @@ export default function Settings() {
     setLoading(false);
   };
 
+  // ── QuickBooks helpers ──────────────────────────────────────────
+
+  const loadQBStatus = async () => {
+    setQbLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("quickbooks-connect", {
+        body: { action: "status" },
+      });
+      if (res.data) setQbStatus(res.data);
+    } catch (err) {
+      console.error("QB status error", err);
+    } finally {
+      setQbLoading(false);
+    }
+  };
+
+  const handleQBConnect = async () => {
+    setQbConnecting(true);
+    try {
+      const res = await supabase.functions.invoke("quickbooks-connect", {
+        body: { action: "get_auth_url" },
+      });
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      } else {
+        toast({ title: "Error", description: res.data?.error || "Could not get QuickBooks auth URL", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setQbConnecting(false);
+    }
+  };
+
+  const handleQBDisconnect = async () => {
+    setQbDisconnecting(true);
+    try {
+      await supabase.functions.invoke("quickbooks-connect", { body: { action: "disconnect" } });
+      setQbStatus(null);
+      toast({ title: "QuickBooks disconnected" });
+    } catch (err) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setQbDisconnecting(false);
+    }
+  };
+
+  const handleQBTest = async () => {
+    setQbTesting(true);
+    await loadQBStatus();
+    setQbTesting(false);
+    toast({ title: "Connection verified", description: `Connected to ${qbStatus?.company_name ?? "QuickBooks"}` });
+  };
+
+  const loadCustomerMappings = async () => {
+    setMappingsLoading(true);
+    try {
+      const res = await supabase.functions.invoke("quickbooks-sync", {
+        body: { action: "get_customer_mappings" },
+      });
+      if (res.data?.mappings) setCustomerMappings(res.data.mappings);
+    } catch (err) {
+      console.error("Mappings error", err);
+    } finally {
+      setMappingsLoading(false);
+    }
+  };
+
+  const handleAutoMap = async () => {
+    const res = await supabase.functions.invoke("quickbooks-sync", {
+      body: { action: "get_customer_mappings" },
+    });
+    if (res.data?.mappings) {
+      setCustomerMappings(res.data.mappings);
+      toast({ title: "Auto-mapping complete", description: "Clients matched to QuickBooks customers." });
+    }
+  };
+
+  // Load QB status when Integrations tab is opened
+  useEffect(() => {
+    if (activeTab === "integrations" && qbStatus === null) {
+      loadQBStatus();
+    }
+    if (activeTab === "integrations" && qbStatus?.connected && customerMappings.length === 0) {
+      loadCustomerMappings();
+    }
+  }, [activeTab]);
+
+  // ── Account / Org / Notif save handlers ────────────────────────
+
   const saveAccount = async () => {
     if (!userId) return;
     setSaving(true);
@@ -144,7 +251,6 @@ export default function Settings() {
     let orgId = org.id;
 
     if (!orgId) {
-      // Create new organization via edge function (bypasses RLS for initial creation)
       const slug = org.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "my-org";
       const { data: fnData, error: fnError } = await supabase.functions.invoke("create-organization", {
         body: {
@@ -167,7 +273,6 @@ export default function Settings() {
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setSaving(false); return; }
     }
 
-    // Upsert org_settings
     await (supabase.from as any)("org_settings").upsert({
       organization_id: orgId, ...orgSettings, updated_at: new Date().toISOString(),
     });
@@ -210,7 +315,7 @@ export default function Settings() {
       return;
     }
     const headers = Object.keys(data[0]);
-    const csv = [headers.join(","), ...data.map(row => headers.map(h => `"${(row as any)[h] ?? ""}"`).join(","))].join("\n");
+    const csv = [headers.join(","), ...data.map((row: any) => headers.map(h => `"${(row as any)[h] ?? ""}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -240,10 +345,11 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-7 w-full">
           <TabsTrigger value="account" className="gap-1.5 text-xs"><User className="h-3.5 w-3.5" />Account</TabsTrigger>
           <TabsTrigger value="organization" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" />Organization</TabsTrigger>
           <TabsTrigger value="billing" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" />Billing</TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-1.5 text-xs"><Plug className="h-3.5 w-3.5" />Integrations</TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5 text-xs"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
           <TabsTrigger value="security" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" />Security</TabsTrigger>
           <TabsTrigger value="data" className="gap-1.5 text-xs"><Database className="h-3.5 w-3.5" />Data</TabsTrigger>
@@ -327,7 +433,6 @@ export default function Settings() {
                   </Select>
                 </div>
               </div>
-
               <Separator />
               <h3 className="text-sm font-semibold text-foreground">Invoice Settings</h3>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -344,7 +449,6 @@ export default function Settings() {
                   <Input value={orgSettings.invoice_footer_note} onChange={e => setOrgSettings(p => ({ ...p, invoice_footer_note: e.target.value }))} placeholder="e.g. Payment due within 30 days" />
                 </div>
               </div>
-
               <Separator />
               <Button onClick={saveOrg} disabled={!orgDirty || saving}>
                 <Save className="h-4 w-4 mr-2" />{saving ? "Saving…" : "Save Organization Changes"}
@@ -376,7 +480,6 @@ export default function Settings() {
                   </span>
                 </div>
               </div>
-
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" onClick={() => window.open(STRIPE_MANAGE_BILLING_URL, "_blank")}>
                   <ExternalLink className="h-4 w-4 mr-2" />Manage Subscription
@@ -386,7 +489,6 @@ export default function Settings() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">Manage subscription, payment method, and invoices via Stripe portal.</p>
-
               <Separator />
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground">Billing Contact</h3>
@@ -394,6 +496,164 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* INTEGRATIONS */}
+        <TabsContent value="integrations">
+          <div className="space-y-6">
+            {/* QuickBooks Connection Card */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#2CA01C]/10 flex items-center justify-center">
+                      <span className="text-[#2CA01C] font-bold text-sm">QB</span>
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">QuickBooks Online</CardTitle>
+                      <CardDescription>Sync invoices and clients automatically</CardDescription>
+                    </div>
+                  </div>
+                  {qbLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : qbStatus?.connected ? (
+                    <Badge className="bg-success/10 text-success border-success/20 gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Connected
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground gap-1">
+                      <XCircle className="h-3 w-3" /> Not Connected
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {qbStatus?.connected ? (
+                  <>
+                    {/* Connected state */}
+                    <div className="rounded-lg bg-success/5 border border-success/20 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        <p className="text-sm font-medium text-foreground">
+                          Connected to <strong>{qbStatus.company_name ?? "QuickBooks"}</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Sync Status: <span className="font-medium text-foreground">
+                          {qbStatus.sync_stats.synced}/{qbStatus.sync_stats.total} invoices synced
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleQBTest}
+                        disabled={qbTesting}
+                      >
+                        {qbTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <RefreshCw className="h-3.5 w-3.5 mr-2" />}
+                        Test Connection
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadCustomerMappings}
+                        disabled={mappingsLoading}
+                      >
+                        <Link2 className="h-3.5 w-3.5 mr-2" />
+                        View Customer Mappings
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={handleQBDisconnect}
+                        disabled={qbDisconnecting}
+                      >
+                        {qbDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <XCircle className="h-3.5 w-3.5 mr-2" />}
+                        Disconnect
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Disconnected state */}
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Connect your QuickBooks Online account to automatically sync invoices and clients. 87% of 3PLs use QuickBooks — eliminate double-entry forever.
+                      </p>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+                        <li>Invoices appear in QuickBooks automatically</li>
+                        <li>Clients mapped to QuickBooks customers</li>
+                        <li>Charge types mapped to QB Items (Storage Fee, Pick Fee, etc.)</li>
+                        <li>Bulk sync all pending invoices at once</li>
+                      </ul>
+                    </div>
+                    <Button onClick={handleQBConnect} disabled={qbConnecting} className="gap-2">
+                      {qbConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                      Connect QuickBooks Online
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Customer Mapping Card — only shown when connected and mappings loaded */}
+            {qbStatus?.connected && customerMappings.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">QuickBooks Customer Mapping</CardTitle>
+                      <CardDescription>Your clients matched to QuickBooks customers</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleAutoMap}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-2" />Auto-map Remaining
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {customerMappings.map((m) => (
+                      <div key={m.client_id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-foreground">{m.client_name}</span>
+                          <span className="text-muted-foreground text-xs">→</span>
+                          <span className="text-sm text-muted-foreground">
+                            {m.qb_customer_name ?? <span className="italic text-muted-foreground/60">Not mapped</span>}
+                          </span>
+                        </div>
+                        {m.mapped ? (
+                          <Badge className="bg-success/10 text-success border-success/20 text-xs gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Mapped
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-xs">Pending</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Future integrations placeholder */}
+            <Card className="opacity-60">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                    <span className="text-muted-foreground font-bold text-xs">SOON</span>
+                  </div>
+                  <div>
+                    <CardTitle className="text-base text-muted-foreground">More Integrations Coming</CardTitle>
+                    <CardDescription>NetSuite, Xero, FreshBooks, and more</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* NOTIFICATIONS */}
@@ -426,7 +686,7 @@ export default function Settings() {
                 <Switch checked={notifs.sms_enabled} onCheckedChange={v => setNotifs(p => ({ ...p, sms_enabled: v }))} />
               </div>
               {notifs.sms_enabled && (
-                <div className="space-y-2 ml-0">
+                <div className="space-y-2">
                   <Label>Phone Number for SMS</Label>
                   <Input value={notifs.sms_phone} onChange={e => setNotifs(p => ({ ...p, sms_phone: e.target.value }))} placeholder="+1 (555) 000-0000" />
                 </div>
@@ -472,10 +732,7 @@ export default function Settings() {
                       <DialogDescription>This action is irreversible. To delete your account and all associated data, please contact support.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => {}}>Cancel</Button>
-                      <Button variant="destructive" onClick={() => toast({ title: "Contact support", description: "Please email support@dispatchbox.ai to delete your account." })}>
-                        I Understand
-                      </Button>
+                      <Button variant="outline">Cancel</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -484,26 +741,30 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* DATA & EXPORTS */}
+        {/* DATA */}
         <TabsContent value="data">
           <Card>
             <CardHeader>
-              <CardTitle>Data & Exports</CardTitle>
-              <CardDescription>Export your data as CSV files.</CardDescription>
+              <CardTitle>Data Export</CardTitle>
+              <CardDescription>Download your data as CSV files.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  { table: "clients", label: "Clients", file: "dispatchbox-clients" },
-                  { table: "client_rate_tables", label: "Rate Cards", file: "dispatchbox-rate-cards" },
-                  { table: "invoices", label: "Invoices", file: "dispatchbox-invoices" },
-                  { table: "calculated_charges", label: "Revenue Recovery Findings", file: "dispatchbox-recovery" },
-                ].map(item => (
-                  <Button key={item.table} variant="outline" className="justify-start" onClick={() => exportData(item.table, item.file)}>
-                    <Download className="h-4 w-4 mr-2" />Export {item.label}
+              {[
+                { table: "invoices", label: "Invoices", desc: "All generated invoices" },
+                { table: "clients", label: "Clients", desc: "Client list and contact info" },
+                { table: "billing_runs", label: "Billing Runs", desc: "All billing run history" },
+                { table: "calculated_charges", label: "Calculated Charges", desc: "All charge calculations" },
+              ].map(item => (
+                <div key={item.table} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => exportData(item.table, item.label.toLowerCase())}>
+                    <Download className="h-3.5 w-3.5 mr-2" />Export CSV
                   </Button>
-                ))}
-              </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
