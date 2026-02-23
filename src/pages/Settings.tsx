@@ -68,18 +68,21 @@ export default function Settings() {
     setUserId(user.id);
     setUserEmail(user.email || "");
 
-    const [profileRes, orgRes, orgSettingsRes, notifsRes] = await Promise.all([
-      supabase.from("user_profiles").select("*").eq("id", user.id).single(),
-      supabase.rpc("get_user_org_id").then(async ({ data: orgId }) => {
-        if (!orgId) return null;
-        return supabase.from("organizations").select("*").eq("id", orgId).single();
-      }),
-      supabase.rpc("get_user_org_id").then(async ({ data: orgId }) => {
-        if (!orgId) return null;
-        return (supabase.from as any)("org_settings").select("*").eq("organization_id", orgId).maybeSingle();
-      }),
+    const [profileRes, orgIdRes, notifsRes] = await Promise.all([
+      supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase.rpc("get_user_org_id"),
       (supabase.from as any)("notification_prefs").select("*").eq("user_id", user.id).maybeSingle(),
     ]);
+
+    const orgId = orgIdRes.data;
+    let orgRes: any = null;
+    let orgSettingsRes: any = null;
+    if (orgId) {
+      [orgRes, orgSettingsRes] = await Promise.all([
+        supabase.from("organizations").select("*").eq("id", orgId).single(),
+        (supabase.from as any)("org_settings").select("*").eq("organization_id", orgId).maybeSingle(),
+      ]);
+    }
 
     if (profileRes.data) {
       const a = { full_name: profileRes.data.full_name || "", phone: profileRes.data.phone || "" };
@@ -127,9 +130,9 @@ export default function Settings() {
   const saveAccount = async () => {
     if (!userId) return;
     setSaving(true);
-    const { error } = await supabase.from("user_profiles").update({
-      full_name: account.full_name, phone: account.phone, updated_at: new Date().toISOString(),
-    }).eq("id", userId);
+    const { error } = await supabase.from("user_profiles").upsert({
+      id: userId, email: userEmail, full_name: account.full_name, phone: account.phone, updated_at: new Date().toISOString(),
+    });
     setSaving(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     setAccountOriginal({ ...account });
@@ -137,22 +140,37 @@ export default function Settings() {
   };
 
   const saveOrg = async () => {
-    if (!org.id) return;
     setSaving(true);
-    const { error } = await supabase.from("organizations").update({
-      name: org.name, address_line1: org.address_line1, address_line2: org.address_line2,
-      city: org.city, state: org.state, zip: org.zip, country: org.country, timezone: org.timezone,
-      updated_at: new Date().toISOString(),
-    }).eq("id", org.id);
+    let orgId = org.id;
+
+    if (!orgId) {
+      // Create new organization and link to user profile
+      const slug = org.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "my-org";
+      const { data: newOrg, error: createErr } = await supabase.from("organizations").insert({
+        name: org.name || "My Organization", slug, address_line1: org.address_line1, address_line2: org.address_line2,
+        city: org.city, state: org.state, zip: org.zip, country: org.country, timezone: org.timezone,
+      }).select().single();
+      if (createErr || !newOrg) { toast({ title: "Error", description: createErr?.message || "Failed to create organization", variant: "destructive" }); setSaving(false); return; }
+      orgId = newOrg.id;
+      // Link user profile to org
+      await supabase.from("user_profiles").upsert({ id: userId!, organization_id: orgId, email: userEmail, updated_at: new Date().toISOString() });
+      setOrg(prev => ({ ...prev, id: orgId }));
+    } else {
+      const { error } = await supabase.from("organizations").update({
+        name: org.name, address_line1: org.address_line1, address_line2: org.address_line2,
+        city: org.city, state: org.state, zip: org.zip, country: org.country, timezone: org.timezone,
+        updated_at: new Date().toISOString(),
+      }).eq("id", orgId);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setSaving(false); return; }
+    }
 
     // Upsert org_settings
     await (supabase.from as any)("org_settings").upsert({
-      organization_id: org.id, ...orgSettings, updated_at: new Date().toISOString(),
+      organization_id: orgId, ...orgSettings, updated_at: new Date().toISOString(),
     });
 
     setSaving(false);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    setOrgOriginal({ ...org });
+    setOrgOriginal({ ...org, id: orgId });
     setOrgSettingsOriginal({ ...orgSettings });
     toast({ title: "Organization updated" });
   };
