@@ -128,6 +128,106 @@ export type Database = {
           },
         ]
       }
+      client_health_scores: {
+        Row: {
+          alert_count: number | null
+          billing_run_id: string | null
+          client_id: string | null
+          id: string
+          leak_risk_score: number | null
+          organization_id: string | null
+          total_expected: number | null
+          total_recovered: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          alert_count?: number | null
+          billing_run_id?: string | null
+          client_id?: string | null
+          id?: string
+          leak_risk_score?: number | null
+          organization_id?: string | null
+          total_expected?: number | null
+          total_recovered?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          alert_count?: number | null
+          billing_run_id?: string | null
+          client_id?: string | null
+          id?: string
+          leak_risk_score?: number | null
+          organization_id?: string | null
+          total_expected?: number | null
+          total_recovered?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_health_scores_billing_run_id_fkey"
+            columns: ["billing_run_id"]
+            isOneToOne: false
+            referencedRelation: "billing_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_health_scores_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_health_scores_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_links: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          organization_id: string | null
+          token: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          organization_id?: string | null
+          token?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          organization_id?: string | null
+          token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_rate_tables: {
         Row: {
           client_id: string
@@ -136,11 +236,15 @@ export type Database = {
           effective_to: string | null
           id: string
           kitting_fee: number | null
+          minimum_applies_to: string | null
+          monthly_minimum_fee: number | null
           organization_id: string
           pack_fee_per_order: number | null
           pick_fee_per_unit: number | null
           receiving_rate_per_pallet: number | null
           receiving_rate_per_unit: number | null
+          returns_processing_fee_per_unit: number | null
+          returns_restocking_fee_pct: number | null
           special_handling_fee: number | null
           storage_rate_per_pallet_per_day: number | null
           storage_rate_per_sku_per_day: number | null
@@ -152,11 +256,15 @@ export type Database = {
           effective_to?: string | null
           id?: string
           kitting_fee?: number | null
+          minimum_applies_to?: string | null
+          monthly_minimum_fee?: number | null
           organization_id: string
           pack_fee_per_order?: number | null
           pick_fee_per_unit?: number | null
           receiving_rate_per_pallet?: number | null
           receiving_rate_per_unit?: number | null
+          returns_processing_fee_per_unit?: number | null
+          returns_restocking_fee_pct?: number | null
           special_handling_fee?: number | null
           storage_rate_per_pallet_per_day?: number | null
           storage_rate_per_sku_per_day?: number | null
@@ -168,11 +276,15 @@ export type Database = {
           effective_to?: string | null
           id?: string
           kitting_fee?: number | null
+          minimum_applies_to?: string | null
+          monthly_minimum_fee?: number | null
           organization_id?: string
           pack_fee_per_order?: number | null
           pick_fee_per_unit?: number | null
           receiving_rate_per_pallet?: number | null
           receiving_rate_per_unit?: number | null
+          returns_processing_fee_per_unit?: number | null
+          returns_restocking_fee_pct?: number | null
           special_handling_fee?: number | null
           storage_rate_per_pallet_per_day?: number | null
           storage_rate_per_sku_per_day?: number | null
@@ -465,10 +577,13 @@ export type Database = {
           created_at: string | null
           handling_type: string | null
           id: string
+          is_return: boolean | null
           order_date: string | null
           order_id: string | null
           organization_id: string
           quantity: number | null
+          return_disposition: string | null
+          return_reason: string | null
           sku: string | null
           source_file_id: string | null
           units_processed: number | null
@@ -478,10 +593,13 @@ export type Database = {
           created_at?: string | null
           handling_type?: string | null
           id?: string
+          is_return?: boolean | null
           order_date?: string | null
           order_id?: string | null
           organization_id: string
           quantity?: number | null
+          return_disposition?: string | null
+          return_reason?: string | null
           sku?: string | null
           source_file_id?: string | null
           units_processed?: number | null
@@ -491,10 +609,13 @@ export type Database = {
           created_at?: string | null
           handling_type?: string | null
           id?: string
+          is_return?: boolean | null
           order_date?: string | null
           order_id?: string | null
           organization_id?: string
           quantity?: number | null
+          return_disposition?: string | null
+          return_reason?: string | null
           sku?: string | null
           source_file_id?: string | null
           units_processed?: number | null
@@ -758,6 +879,67 @@ export type Database = {
             columns: ["source_file_id"]
             isOneToOne: false
             referencedRelation: "source_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_alerts: {
+        Row: {
+          alert_type: string
+          billing_run_id: string | null
+          client_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_resolved: boolean | null
+          leak_amount: number | null
+          organization_id: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          alert_type: string
+          billing_run_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          leak_amount?: number | null
+          organization_id?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          billing_run_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          leak_amount?: number | null
+          organization_id?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_alerts_billing_run_id_fkey"
+            columns: ["billing_run_id"]
+            isOneToOne: false
+            referencedRelation: "billing_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_alerts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
