@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
         const r = rate.kitting_fee || 0;
         expected = r;
         desc = `Kitting: 1 @ $${r}`;
-      } else if (handlingType === "special") {
+      } else if (handlingType === "special" || handlingType === "special_handling") {
         const r = rate.special_handling_fee || 0;
         expected = r;
         desc = `Special handling: 1 @ $${r}`;
@@ -193,21 +193,23 @@ Deno.serve(async (req) => {
     }
 
     // --- RETURNS CHARGES ---
+    // Returns are stored in order_activities with is_return = true
     const { data: returns } = await adminClient
-      .from("returns_log")
+      .from("order_activities")
       .select("*")
       .eq("organization_id", orgId)
+      .eq("is_return", true)
       .in("client_id", clientIds)
-      .gte("return_date", period_start)
-      .lte("return_date", period_end);
+      .gte("order_date", period_start)
+      .lte("order_date", period_end);
 
     for (const ret of returns || []) {
       const rate = ratesByClient[ret.client_id];
       if (!rate) continue;
-      const units = ret.units_returned || 0;
-      const feePerUnit = rate.return_fee_per_unit || 0;
+      // Support units_returned column OR fall back to units_processed / quantity
+      const units = ret.units_returned || ret.units_processed || ret.quantity || 0;
+      const feePerUnit = rate.returns_processing_fee_per_unit || rate.return_fee_per_unit || 0;
       const feePerOrder = rate.return_fee_per_order || 0;
-      // Use per-unit if set, otherwise per-order
       const expected = feePerUnit > 0 ? units * feePerUnit : feePerOrder;
       if (expected > 0) {
         charges.push({
@@ -225,6 +227,32 @@ Deno.serve(async (req) => {
           reference_id: ret.id,
         });
       }
+    }
+
+    // --- ADJUSTMENTS (credits / debits) ---
+    const { data: adjustments } = await adminClient
+      .from("billing_adjustments")
+      .select("*")
+      .eq("organization_id", orgId)
+      .in("client_id", clientIds)
+      .gte("adjustment_date", period_start)
+      .lte("adjustment_date", period_end);
+
+    for (const adj of adjustments || []) {
+      const amount = parseFloat(adj.adjustment_amount) || 0;
+      if (amount === 0) continue;
+      charges.push({
+        organization_id: orgId,
+        billing_run_id: run.id,
+        client_id: adj.client_id,
+        charge_type: "adjustment",
+        description: adj.adjustment_notes || (amount < 0 ? "Credit adjustment" : "Debit adjustment"),
+        quantity: 1,
+        unit_rate: amount,
+        expected_charge: amount,
+        billed_charge: 0,
+        reference_id: adj.id,
+      });
     }
 
     // --- MONTHLY MINIMUM CHARGES ---

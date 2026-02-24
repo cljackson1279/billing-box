@@ -34,8 +34,15 @@ const chargeTypeBadge: Record<string, { label: string; className: string }> = {
 };
 
 export default function BillingRuns() {
-  const [periodStart, setPeriodStart] = useState<Date>(subDays(new Date(), 30));
-  const [periodEnd, setPeriodEnd] = useState<Date>(new Date());
+  // Default to the first and last day of the current calendar month
+  const [periodStart, setPeriodStart] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [periodEnd, setPeriodEnd] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0); // last day of current month
+  });
   const [running, setRunning] = useState(false);
   const [generatingInvoices, setGeneratingInvoices] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
