@@ -501,6 +501,10 @@ Deno.serve(async (req) => {
       const { data: clients } = await supabase.from("clients").select("id, name").eq("organization_id", orgId);
       const clientMap = new Map((clients || []).map(c => [c.name.toLowerCase(), c.id]));
 
+      // If there's only one client and no client_id mapping, auto-assign
+      const hasClientMapping = columnMapping && (columnMapping as Record<string, string>).client_id;
+      const singleClientId = (clients && clients.length === 1) ? clients[0].id : null;
+
       const dateFields = DATE_FIELDS[category] || [];
       const errors: string[] = [];
       const insertRows: Record<string, unknown>[] = [];
@@ -563,6 +567,10 @@ Deno.serve(async (req) => {
           // Defaults
           if (category === "client_rates" && !mapped.effective_from) {
             mapped.effective_from = new Date().toISOString();
+          }
+
+          if (!mapped.client_id && singleClientId) {
+            mapped.client_id = singleClientId;
           }
 
           if (!mapped.client_id) {
