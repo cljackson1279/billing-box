@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BarChart3, FileSpreadsheet, Shield, Zap, TrendingUp, DollarSign, CheckCircle2, XCircle, Link2 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import { useAuth } from "@/lib/auth-context";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const features = [
   {
@@ -77,6 +79,8 @@ const comparison = [
 ];
 
 export default function Landing() {
+  const { session, displayName, initials, profile, isLoading } = useAuth();
+  const isSignedIn = !!session;
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -95,14 +99,33 @@ export default function Landing() {
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">Log in</Button>
-            </Link>
-            <Link to="/signup">
-              <Button variant="hero" size="sm">
-                Start Free <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </Link>
+            {isSignedIn ? (
+              <>
+                <Link to="/dashboard">
+                  <Button variant="hero" size="sm">
+                    Go to Dashboard <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+                <Link to="/dashboard" className="flex items-center gap-2">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-foreground hidden md:inline">{displayName}</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm">Log in</Button>
+                </Link>
+                <Link to="/signup">
+                  <Button variant="hero" size="sm">
+                    Start Free <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

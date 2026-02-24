@@ -1,38 +1,28 @@
-import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import AppSidebar from "./AppSidebar";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function AppLayout() {
-  const [loading, setLoading] = useState(true);
+  const { session, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/login");
-      }
-      setLoading(false);
-    });
+    if (!isLoading && !session) {
+      navigate("/login");
+    }
+  }, [isLoading, session, navigate]);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/login");
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (!session) return null;
 
   return (
     <div className="flex min-h-screen bg-background">

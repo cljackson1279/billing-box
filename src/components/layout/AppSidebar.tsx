@@ -10,10 +10,22 @@ import {
   LogOut,
   Zap,
   ChevronLeft,
+  ChevronDown,
+  User,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -28,9 +40,10 @@ export default function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const { displayName, initials, profile, organization, signOut } = useAuth();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/");
   };
 
@@ -87,7 +100,7 @@ export default function AppSidebar() {
         })}
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom: Settings + User Profile */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
         <Link
           to="/settings"
@@ -96,13 +109,52 @@ export default function AppSidebar() {
           <Settings className="h-4.5 w-4.5 shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/70 hover:text-destructive hover:bg-sidebar-accent/50 transition-colors"
-        >
-          <LogOut className="h-4.5 w-4.5 shrink-0" />
-          {!collapsed && <span>Log Out</span>}
-        </button>
+
+        {/* User profile dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors",
+              collapsed && "justify-center"
+            )}>
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-xs font-semibold truncate">{displayName}</div>
+                  {organization && (
+                    <div className="text-[10px] text-sidebar-foreground/50 truncate">{organization.name}</div>
+                  )}
+                </div>
+              )}
+              {!collapsed && <ChevronDown className="h-3 w-3 text-sidebar-foreground/50 shrink-0" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="text-sm font-semibold">{displayName}</div>
+              <div className="text-xs text-muted-foreground">{profile?.role || "Admin"}</div>
+              {organization && (
+                <div className="text-xs text-muted-foreground mt-0.5">Org: {organization.name}</div>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <User className="h-4 w-4 mr-2" /> Profile Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <CreditCard className="h-4 w-4 mr-2" /> Manage Billing
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <LogOut className="h-4 w-4 mr-2" /> Log Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );
