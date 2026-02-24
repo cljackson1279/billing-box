@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, ArrowRight, Zap } from "lucide-react";
+import BrandIcon from "@/components/BrandIcon";
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
 
@@ -23,9 +24,7 @@ export default function Pricing() {
       <nav className="fixed top-0 w-full z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <BrandIcon size="md" />
             <span className="font-bold text-lg text-foreground">
               DispatchBox<span className="text-gradient-brand">AI</span>
             </span>
@@ -118,9 +117,7 @@ export default function Pricing() {
       <footer className="border-t border-border py-8">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded bg-gradient-brand flex items-center justify-center">
-              <Zap className="h-3 w-3 text-primary-foreground" />
-            </div>
+            <BrandIcon size="sm" />
             <span className="text-sm font-semibold text-foreground">DispatchBoxAI</span>
           </div>
           <p className="text-xs text-muted-foreground">© 2026 DispatchBoxAI. All rights reserved.</p>

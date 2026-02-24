@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Zap } from "lucide-react";
+import { CheckCircle, ArrowRight } from "lucide-react";
+import BrandIcon from "@/components/BrandIcon";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect } from "react";
 
@@ -20,9 +21,7 @@ export default function Success() {
       <nav className="border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <BrandIcon size="md" />
             <span className="font-bold text-lg text-foreground">
               DispatchBox<span className="text-gradient-brand">AI</span>
             </span>

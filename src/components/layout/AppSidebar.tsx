@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import BrandIcon from "@/components/BrandIcon";
 import {
   LayoutDashboard,
   Users,
@@ -8,7 +9,6 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Zap,
   ChevronLeft,
   ChevronDown,
   User,
@@ -74,18 +74,14 @@ export default function AppSidebar() {
       <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
         {!collapsed && (
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center shrink-0">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <BrandIcon size="md" />
             <span className="font-bold text-sm text-sidebar-foreground">
               DispatchBox<span className="text-sidebar-primary">AI</span>
             </span>
           </Link>
         )}
         {collapsed && (
-          <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center mx-auto">
-            <Zap className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <BrandIcon size="md" className="mx-auto" />
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -149,7 +145,7 @@ export default function AppSidebar() {
             onClick={startCheckout}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-brand text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
           >
-            <Zap className="h-4 w-4" />
+            <BrandIcon size="md" />
             Subscribe — $499/mo
           </button>
         </div>
