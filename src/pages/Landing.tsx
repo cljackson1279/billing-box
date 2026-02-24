@@ -269,7 +269,7 @@ export default function Landing() {
             <div className="grid grid-cols-3 bg-muted/50 px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               <span>Feature</span>
               <span className="text-center text-primary">DispatchBoxAI</span>
-              <span className="text-center">PackemWMS / Others</span>
+              <span className="text-center">OTHERS</span>
             </div>
             {comparison.map((row, i) => (
               <div
