@@ -505,6 +505,36 @@ Deno.serve(async (req) => {
       const hasClientMapping = columnMapping && (columnMapping as Record<string, string>).client_id;
       const singleClientId = (clients && clients.length === 1) ? clients[0].id : null;
 
+      // Helper: resolve client name → UUID, auto-creating the client if it doesn't exist yet
+      const autoResolveClient = async (rawName: string): Promise<string | null> => {
+        const key = rawName.toLowerCase().trim();
+        if (clientMap.has(key)) return clientMap.get(key)!;
+
+        // Normalize display name: replace underscores/hyphens with spaces, title-case
+        const displayName = rawName.replace(/[_\-]+/g, " ").replace(/\b\w/g, l => l.toUpperCase()).trim();
+
+        // Try to find by normalized name one more time
+        const normalized = displayName.toLowerCase();
+        if (clientMap.has(normalized)) return clientMap.get(normalized)!;
+
+        // Auto-create the client
+        const { data: newClient, error: createErr } = await supabase
+          .from("clients")
+          .insert({ organization_id: orgId, name: displayName, status: "active" })
+          .select("id")
+          .single();
+
+        if (createErr || !newClient) {
+          console.error(`[process-workbook] Failed to auto-create client "${displayName}":`, createErr?.message);
+          return null;
+        }
+
+        console.log(`[process-workbook] Auto-created client "${displayName}" → ${newClient.id}`);
+        clientMap.set(key, newClient.id);
+        clientMap.set(normalized, newClient.id);
+        return newClient.id;
+      };
+
       const dateFields = DATE_FIELDS[category] || [];
       const errors: string[] = [];
       const insertRows: Record<string, unknown>[] = [];
@@ -528,11 +558,11 @@ Deno.serve(async (req) => {
             let val: unknown = row[csvCol]?.toString().trim();
             if (val === "" || val === undefined) val = null;
 
-            // Client name → ID resolution
+            // Client name → ID resolution (auto-creates client if not found)
             if (dbField === "client_id" && val) {
-              const resolved = clientMap.get((val as string).toLowerCase());
+              const resolved = await autoResolveClient(val as string);
               if (!resolved) {
-                errors.push(`Row ${i + 1}: Unknown client "${val}"`);
+                errors.push(`Row ${i + 1}: Could not resolve or create client "${val}"`);
                 val = null;
               } else {
                 val = resolved;

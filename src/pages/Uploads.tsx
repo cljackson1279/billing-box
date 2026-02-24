@@ -841,7 +841,7 @@ export default function Uploads() {
             <Button variant="outline" onClick={resetFlow}>
               <RefreshCw className="mr-1 h-4 w-4" /> Upload Another
             </Button>
-            <Button onClick={() => window.location.href = "/billing-runs"}>
+            <Button onClick={() => window.location.href = "/billing"}>
               Run Billing →
             </Button>
           </div>
