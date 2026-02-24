@@ -15,6 +15,7 @@ interface Organization {
   id: string;
   name: string;
   slug: string;
+  subscription_status: string | null;
 }
 
 interface AuthContextValue {
@@ -25,8 +26,14 @@ interface AuthContextValue {
   isLoading: boolean;
   displayName: string;
   initials: string;
+  isAdmin: boolean;
+  isSubscribed: boolean;
+  subscriptionLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
+  startCheckout: () => Promise<void>;
+  openCustomerPortal: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -37,8 +44,14 @@ const AuthContext = createContext<AuthContextValue>({
   isLoading: true,
   displayName: "User",
   initials: "U",
+  isAdmin: false,
+  isSubscribed: false,
+  subscriptionLoading: true,
   signOut: async () => {},
   refreshProfile: async () => {},
+  refreshSubscription: async () => {},
+  startCheckout: async () => {},
+  openCustomerPortal: async () => {},
 });
 
 export function useAuth() {
@@ -70,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
@@ -83,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.organization_id) {
         const { data: org } = await supabase
           .from("organizations")
-          .select("id, name, slug")
+          .select("id, name, slug, subscription_status")
           .eq("id", data.organization_id)
           .single();
         setOrganization(org || null);
@@ -93,29 +109,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSubscription = useCallback(async () => {
+    if (!session) {
+      setIsSubscribed(false);
+      setIsAdmin(false);
+      setSubscriptionLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("check-subscription");
+      if (error) {
+        console.error("Subscription check error:", error);
+        setSubscriptionLoading(false);
+        return;
+      }
+      setIsSubscribed(data?.subscribed || false);
+      setIsAdmin(data?.isAdmin || false);
+    } catch (err) {
+      console.error("Subscription check failed:", err);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  }, [session]);
+
   const refreshProfile = useCallback(async () => {
     if (user?.id) await fetchProfile(user.id);
   }, [user?.id, fetchProfile]);
 
   useEffect(() => {
-    // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          // Defer profile fetch to avoid deadlock with auth
           setTimeout(() => fetchProfile(newSession.user.id), 0);
         } else {
           setProfile(null);
           setOrganization(null);
+          setIsAdmin(false);
+          setIsSubscribed(false);
         }
         setIsLoading(false);
       }
     );
 
-    // Then check existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
@@ -128,12 +167,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
+  // Check subscription when session changes
+  useEffect(() => {
+    if (session) {
+      refreshSubscription();
+    } else {
+      setSubscriptionLoading(false);
+    }
+  }, [session, refreshSubscription]);
+
+  // Periodic subscription refresh (every 60s)
+  useEffect(() => {
+    if (!session) return;
+    const interval = setInterval(refreshSubscription, 60000);
+    return () => clearInterval(interval);
+  }, [session, refreshSubscription]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setProfile(null);
     setOrganization(null);
+    setIsAdmin(false);
+    setIsSubscribed(false);
+  }, []);
+
+  const startCheckout = useCallback(async () => {
+    const { data, error } = await supabase.functions.invoke("create-checkout");
+    if (error) {
+      console.error("Checkout error:", error);
+      return;
+    }
+    if (data?.url) {
+      window.open(data.url, "_blank");
+    }
+  }, []);
+
+  const openCustomerPortal = useCallback(async () => {
+    const { data, error } = await supabase.functions.invoke("customer-portal");
+    if (error) {
+      console.error("Portal error:", error);
+      return;
+    }
+    if (data?.url) {
+      window.open(data.url, "_blank");
+    }
   }, []);
 
   const displayName = getDisplayName(profile, user);
@@ -149,8 +228,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         displayName,
         initials,
+        isAdmin,
+        isSubscribed,
+        subscriptionLoading,
         signOut,
         refreshProfile,
+        refreshSubscription,
+        startCheckout,
+        openCustomerPortal,
       }}
     >
       {children}

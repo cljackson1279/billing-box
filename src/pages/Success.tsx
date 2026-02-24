@@ -2,8 +2,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, ArrowRight, Zap } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useEffect } from "react";
 
 export default function Success() {
+  const { refreshSubscription } = useAuth();
+
+  // Refresh subscription status when landing on success page
+  useEffect(() => {
+    const timer = setTimeout(() => refreshSubscription(), 2000);
+    return () => clearTimeout(timer);
+  }, [refreshSubscription]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Nav */}
@@ -27,9 +37,9 @@ export default function Success() {
             <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="h-8 w-8 text-success" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">Subscription Successful</h1>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Subscription Active! 🎉</h1>
             <p className="text-muted-foreground mb-8">
-              Thank you for subscribing to DispatchBox. We will contact you shortly for onboarding.
+              Welcome to DispatchBoxAI. You now have full access to all revenue recovery features.
             </p>
             <Link to="/dashboard">
               <Button variant="hero" size="lg" className="text-base">
