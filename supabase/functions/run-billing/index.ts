@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
       if (!rate) continue;
       const start = new Date(Math.max(new Date(inv.storage_start_date).getTime(), new Date(period_start).getTime()));
       const endDate = inv.storage_end_date ? new Date(Math.min(new Date(inv.storage_end_date).getTime(), new Date(period_end).getTime())) : new Date(period_end);
-      const days = Math.max(1, Math.ceil((endDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      // Inclusive day count: Feb 1 to Feb 28 = 28 days (add 1 to interval)
+      const days = Math.max(1, Math.ceil((endDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       const pallets = inv.pallet_count || 0;
       const palletRate = rate.storage_rate_per_pallet_per_day || 0;
       const expected = days * pallets * palletRate;
@@ -164,8 +165,9 @@ Deno.serve(async (req) => {
         desc = `Pack: 1 order @ $${r}`;
       } else if (handlingType === "kitting") {
         const r = rate.kitting_fee || 0;
+        // kitting_fee is a flat per-order fee (not per-unit)
         expected = r;
-        desc = `Kitting: 1 @ $${r}`;
+        desc = `Kitting: 1 order @ $${r}`;
       } else if (handlingType === "special" || handlingType === "special_handling") {
         const r = rate.special_handling_fee || 0;
         expected = r;
