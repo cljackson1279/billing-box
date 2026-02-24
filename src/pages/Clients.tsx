@@ -266,9 +266,9 @@ export default function Clients() {
 
   const detailClient = clients.find(c => c.id === detailClientId);
 
-  // Client form dialog content (reused for add/edit)
-  const ClientFormContent = ({ isEdit }: { isEdit: boolean }) => (
-    <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+  // Client form content rendered inline to avoid remounting
+  const clientFormFields = (
+    <>
       <div className="space-y-2">
         <Label htmlFor="clientName">Name *</Label>
         <Input id="clientName" placeholder="Walmart Retail Inc." required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -285,12 +285,7 @@ export default function Clients() {
         <Label htmlFor="clientNotes">Notes</Label>
         <Textarea id="clientNotes" placeholder="Big box retailer, DC Midwest" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={3} />
       </div>
-      <DialogFooter>
-        <Button type="submit" variant="hero" className="w-full" disabled={addClient.isPending || updateClient.isPending}>
-          {(addClient.isPending || updateClient.isPending) ? "Saving..." : isEdit ? "Update Client" : "Save Client"}
-        </Button>
-      </DialogFooter>
-    </form>
+    </>
   );
 
   // Detail view
@@ -434,7 +429,14 @@ export default function Clients() {
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
             <DialogHeader><DialogTitle>Edit Client</DialogTitle></DialogHeader>
-            <ClientFormContent isEdit />
+            <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+              {clientFormFields}
+              <DialogFooter>
+                <Button type="submit" variant="hero" className="w-full" disabled={updateClient.isPending}>
+                  {updateClient.isPending ? "Saving..." : "Update Client"}
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 
@@ -498,7 +500,14 @@ export default function Clients() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>New Client</DialogTitle></DialogHeader>
-              <ClientFormContent isEdit={false} />
+              <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+                {clientFormFields}
+                <DialogFooter>
+                  <Button type="submit" variant="hero" className="w-full" disabled={addClient.isPending}>
+                    {addClient.isPending ? "Saving..." : "Save Client"}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -594,7 +603,14 @@ export default function Clients() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit Client</DialogTitle></DialogHeader>
-          <ClientFormContent isEdit />
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            {clientFormFields}
+            <DialogFooter>
+              <Button type="submit" variant="hero" className="w-full" disabled={updateClient.isPending}>
+                {updateClient.isPending ? "Saving..." : "Update Client"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
