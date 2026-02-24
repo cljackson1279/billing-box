@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { Zap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import BrandIcon from "@/components/BrandIcon";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -76,9 +77,7 @@ export default function Signup() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-navy items-center justify-center p-12">
         <div className="max-w-md text-primary-foreground">
           <div className="flex items-center gap-2 mb-8">
-            <div className="h-10 w-10 rounded-lg bg-gradient-brand flex items-center justify-center">
-              <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <BrandIcon size="lg" />
             <span className="text-2xl font-bold">DispatchBox<span className="text-gradient-brand">AI</span></span>
           </div>
           <h2 className="text-3xl font-bold mb-4">Start Recovering Revenue Today.</h2>
@@ -93,9 +92,7 @@ export default function Signup() {
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-6 lg:hidden">
-              <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-                <Zap className="h-4 w-4 text-primary-foreground" />
-              </div>
+              <BrandIcon size="md" />
               <span className="font-bold text-lg">DispatchBoxAI</span>
             </div>
             <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
