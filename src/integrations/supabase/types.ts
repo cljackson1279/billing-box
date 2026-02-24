@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_adjustments: {
+        Row: {
+          adjustment_amount: number
+          adjustment_date: string | null
+          adjustment_notes: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          organization_id: string
+          source_file_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjustment_amount?: number
+          adjustment_date?: string | null
+          adjustment_notes?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          organization_id: string
+          source_file_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjustment_amount?: number
+          adjustment_date?: string | null
+          adjustment_notes?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          source_file_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_adjustments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_adjustments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_adjustments_source_file_id_fkey"
+            columns: ["source_file_id"]
+            isOneToOne: false
+            referencedRelation: "source_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_runs: {
         Row: {
           created_at: string | null
@@ -575,6 +633,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string | null
+          disposition: string | null
           handling_type: string | null
           id: string
           is_return: boolean | null
@@ -591,6 +650,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string | null
+          disposition?: string | null
           handling_type?: string | null
           id?: string
           is_return?: boolean | null
@@ -607,6 +667,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string | null
+          disposition?: string | null
           handling_type?: string | null
           id?: string
           is_return?: boolean | null
