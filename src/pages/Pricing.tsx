@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, ArrowRight, Zap } from "lucide-react";
-
-const STRIPE_PAYMENT_LINK_URL = "https://buy.stripe.com/test_PLACEHOLDER";
+import { useAuth } from "@/lib/auth-context";
+import { Badge } from "@/components/ui/badge";
 
 const features = [
   "Revenue leak detection",
@@ -15,6 +15,8 @@ const features = [
 ];
 
 export default function Pricing() {
+  const { session, isSubscribed, isAdmin, startCheckout, openCustomerPortal } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -28,19 +30,17 @@ export default function Pricing() {
               DispatchBox<span className="text-gradient-brand">AI</span>
             </span>
           </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <Link to="/#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</Link>
-            <Link to="/pricing" className="text-sm text-foreground font-medium">Pricing</Link>
-          </div>
           <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">Log in</Button>
-            </Link>
-            <Link to="/signup">
-              <Button variant="hero" size="sm">
-                Start Free <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </Link>
+            {session ? (
+              <Link to="/dashboard">
+                <Button variant="hero" size="sm">Go to Dashboard <ArrowRight className="h-3.5 w-3.5" /></Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login"><Button variant="ghost" size="sm">Log in</Button></Link>
+                <Link to="/signup"><Button variant="hero" size="sm">Sign Up</Button></Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -62,6 +62,11 @@ export default function Pricing() {
         <div className="container flex justify-center">
           <Card className="w-full max-w-md border-2 border-primary/30 shadow-elevated relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-brand" />
+            {(isSubscribed || isAdmin) && (
+              <div className="absolute top-4 right-4">
+                <Badge className="bg-success/10 text-success border-success/30">✅ Your Plan</Badge>
+              </div>
+            )}
             <CardHeader className="text-center pb-2 pt-8">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary mx-auto mb-4">
                 <Zap className="h-3 w-3" /> Most Popular
@@ -86,11 +91,21 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
-              <a href={STRIPE_PAYMENT_LINK_URL} className="block">
-                <Button variant="hero" size="lg" className="w-full text-base">
+              {isSubscribed || isAdmin ? (
+                <Button variant="outline" size="lg" className="w-full text-base" onClick={openCustomerPortal}>
+                  Manage Subscription
+                </Button>
+              ) : session ? (
+                <Button variant="hero" size="lg" className="w-full text-base" onClick={startCheckout}>
                   Start Subscription <ArrowRight className="h-4 w-4" />
                 </Button>
-              </a>
+              ) : (
+                <Link to="/signup" className="block">
+                  <Button variant="hero" size="lg" className="w-full text-base">
+                    Sign Up & Subscribe <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
               <p className="text-xs text-muted-foreground text-center mt-3">
                 No long-term contracts. Cancel anytime.
               </p>
