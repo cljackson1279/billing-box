@@ -1,0 +1,2 @@
+ALTER TABLE public.source_files DROP CONSTRAINT source_files_file_type_check;
+ALTER TABLE public.source_files ADD CONSTRAINT source_files_file_type_check CHECK (file_type = ANY (ARRAY['inventory'::text, 'order'::text, 'receiving'::text, 'client_rates'::text, 'returns'::text, 'adjustments'::text]));
