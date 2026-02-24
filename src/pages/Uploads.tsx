@@ -198,6 +198,59 @@ export default function Uploads() {
     setRemapSheetIndex(null);
   };
 
+  // ── Known header keywords used to detect the true header row ──
+  const HEADER_KEYWORDS = [
+    "client_id", "client", "customer", "sku", "quantity", "qty", "pallet",
+    "storage", "receiving", "order", "return", "adjustment", "pick", "pack",
+    "date", "rate", "fee", "units", "location", "warehouse", "description",
+    "handling", "amount", "notes", "carrier", "disposition", "reason",
+  ];
+
+  // Scan raw sheet rows to find the first row where ≥2 cells match known header keywords.
+  // Returns the 0-based row index of the true header row (default 0 if not found).
+  const detectHeaderRow = (worksheet: XLSX.WorkSheet): number => {
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
+    for (let r = range.s.r; r <= Math.min(range.s.r + 9, range.e.r); r++) {
+      let matchCount = 0;
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellAddr];
+        if (!cell) continue;
+        const val = String(cell.v || "").toLowerCase().trim();
+        if (HEADER_KEYWORDS.some(kw => val.includes(kw))) matchCount++;
+      }
+      if (matchCount >= 2) return r;
+    }
+    return 0; // default: row 0 is the header
+  };
+
+  const parseSheetWithHeaderDetection = (
+    worksheet: XLSX.WorkSheet,
+    sheetName: string
+  ): SheetInfo | null => {
+    const headerRowIdx = detectHeaderRow(worksheet);
+    // Re-parse starting from the detected header row
+    const json = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
+      defval: "",
+      range: headerRowIdx, // tells xlsx to use this row as the header
+    });
+    if (json.length === 0) return null;
+    const headers = Object.keys(json[0]);
+    // Filter out rows that are just the title/subtitle (all values match a header key)
+    const dataRows = json.filter(row => {
+      const vals = Object.values(row).map(v => String(v).trim());
+      return vals.some(v => v !== "" && !headers.includes(v));
+    });
+    if (dataRows.length === 0) return null;
+    return {
+      name: sheetName,
+      headers,
+      sampleRows: dataRows.slice(0, 5),
+      rowCount: dataRows.length,
+      allRows: dataRows,
+    };
+  };
+
   const parseExcelFile = (file: File): Promise<SheetInfo[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -208,10 +261,8 @@ export default function Uploads() {
           const sheets: SheetInfo[] = [];
           for (const sheetName of workbook.SheetNames) {
             const worksheet = workbook.Sheets[sheetName];
-            const json = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: "" });
-            if (json.length === 0) continue;
-            const headers = Object.keys(json[0]);
-            sheets.push({ name: sheetName, headers, sampleRows: json.slice(0, 5), rowCount: json.length, allRows: json });
+            const sheet = parseSheetWithHeaderDetection(worksheet, sheetName);
+            if (sheet) sheets.push(sheet);
           }
           resolve(sheets);
         } catch (err) { reject(err); }
@@ -230,15 +281,8 @@ export default function Uploads() {
           const workbook = XLSX.read(text, { type: "string" });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const json = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: "" });
-          if (json.length === 0) { resolve([]); return; }
-          resolve([{
-            name: file.name.replace(/\.\w+$/, ""),
-            headers: Object.keys(json[0]),
-            sampleRows: json.slice(0, 5),
-            rowCount: json.length,
-            allRows: json,
-          }]);
+          const sheet = parseSheetWithHeaderDetection(worksheet, file.name.replace(/\.\w+$/, ""));
+          resolve(sheet ? [sheet] : []);
         } catch (err) { reject(err); }
       };
       reader.onerror = () => reject(new Error("Failed to read file"));
