@@ -544,8 +544,11 @@ Deno.serve(async (req) => {
         const row = rows[i];
         const mapped: Record<string, unknown> = {
           organization_id: orgId,
-          source_file_id: sourceFile.id,
         };
+        // Only add source_file_id for tables that have the column
+        if (category !== "client_rates") {
+          mapped.source_file_id = sourceFile.id;
+        }
 
         // For returns, set is_return flag
         if (category === "returns") {
