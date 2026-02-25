@@ -16,9 +16,16 @@ const QB_TOKEN_URL     = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bea
 // Intuit sends the user's browser back here with ?code=&realmId=&state=
 // so the React Settings page can detect those params and call the callback action.
 // SITE_URL secret should be set to: https://dispatchboxai.com
-const SITE_URL = (Deno.env.get("SITE_URL") ?? "https://dispatchboxai.com").replace(/\/$/, "");
+// This code normalises the value even if the secret is stored without "https://"
+let _siteUrl = (Deno.env.get("SITE_URL") ?? "dispatchboxai.com").replace(/\/$/, "");
+if (!_siteUrl.startsWith("http://") && !_siteUrl.startsWith("https://")) {
+  _siteUrl = "https://" + _siteUrl;
+}
+const SITE_URL = _siteUrl;
 const REDIRECT_URI = `${SITE_URL}/settings?tab=integrations`;
-console.log("[QB-DEBUG] SITE_URL env:", Deno.env.get("SITE_URL") ?? "(not set)");
+
+console.log("[QB-DEBUG] SITE_URL env raw:", Deno.env.get("SITE_URL") ?? "(not set)");
+console.log("[QB-DEBUG] SITE_URL normalized:", SITE_URL);
 console.log("[QB-DEBUG] REDIRECT_URI:", REDIRECT_URI);
 
 serve(async (req) => {
@@ -55,7 +62,7 @@ serve(async (req) => {
         state,
       });
       const authUrl = `${QB_AUTH_URL}?${params.toString()}`;
-      // Return both the URL and the redirect_uri so the frontend knows what was registered
+      // Return both the URL and the redirect_uri so the frontend knows what was sent
       return new Response(JSON.stringify({ url: authUrl, redirect_uri: REDIRECT_URI }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
