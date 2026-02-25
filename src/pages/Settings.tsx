@@ -75,7 +75,49 @@ export default function Settings() {
 
   useEffect(() => {
     loadAll();
+    // Handle QuickBooks OAuth callback — Intuit redirects back to
+    // /settings?tab=integrations&code=xxx&realmId=yyy&state=zzz
+    const params = new URLSearchParams(window.location.search);
+    const qbCode = params.get("code");
+    const qbRealmId = params.get("realmId");
+    const qbState = params.get("state");
+    if (qbCode && qbRealmId && qbState) {
+      setActiveTab("integrations");
+      // Clean the URL so a page refresh doesn't re-trigger the callback
+      window.history.replaceState({}, document.title, window.location.pathname + "?tab=integrations");
+      handleQBCallback(qbCode, qbRealmId, qbState);
+    }
   }, []);
+
+  const handleQBCallback = async (code: string, realmId: string, state: string) => {
+    setQbConnecting(true);
+    try {
+      const res = await supabase.functions.invoke("quickbooks-connect", {
+        body: { action: "callback", code, realmId, state },
+      });
+      if (res.data?.success) {
+        toast({
+          title: "QuickBooks connected!",
+          description: `Successfully connected to ${res.data.company_name || "your QuickBooks company"}.`,
+        });
+        await loadQBStatus();
+      } else {
+        toast({
+          title: "QuickBooks connection failed",
+          description: res.data?.error || "Could not complete QuickBooks authorization.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "QuickBooks connection error",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setQbConnecting(false);
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);

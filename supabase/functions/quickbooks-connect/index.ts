@@ -6,12 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const QB_CLIENT_ID = Deno.env.get("QB_CLIENT_ID") ?? "";
+const QB_CLIENT_ID     = Deno.env.get("QB_CLIENT_ID") ?? "";
 const QB_CLIENT_SECRET = Deno.env.get("QB_CLIENT_SECRET") ?? "";
-const QB_REDIRECT_URI = Deno.env.get("QB_REDIRECT_URI") ?? "";
-const QB_SCOPE = "com.intuit.quickbooks.accounting";
-const QB_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2";
-const QB_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+const QB_SCOPE         = "com.intuit.quickbooks.accounting";
+const QB_AUTH_URL      = "https://appcenter.intuit.com/connect/oauth2";
+const QB_TOKEN_URL     = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+
+// The redirect URI must be your FRONTEND app URL.
+// Intuit sends the user's browser back here with ?code=&realmId=&state=
+// so the React Settings page can detect those params and call the callback action.
+// SITE_URL secret should be set to: https://dispatchboxai.com
+const SITE_URL = (Deno.env.get("SITE_URL") ?? "https://dispatchboxai.com").replace(/\/$/, "");
+const REDIRECT_URI = `${SITE_URL}/settings?tab=integrations`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -21,8 +27,13 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Parse action from query string OR JSON body
   const url = new URL(req.url);
-  const action = url.searchParams.get("action") || (await req.json().catch(() => ({}))).action;
+  let action: string | null = url.searchParams.get("action");
+  let body: Record<string, any> = {};
+  if (!action) {
+    try { body = await req.json(); action = body.action ?? null; } catch { /* no body */ }
+  }
 
   try {
     // ── GET OAUTH URL ──────────────────────────────────────────────
@@ -37,17 +48,20 @@ serve(async (req) => {
       const params = new URLSearchParams({
         client_id: QB_CLIENT_ID,
         scope: QB_SCOPE,
-        redirect_uri: QB_REDIRECT_URI,
+        redirect_uri: REDIRECT_URI,
         response_type: "code",
         state,
       });
       const authUrl = `${QB_AUTH_URL}?${params.toString()}`;
-      return new Response(JSON.stringify({ url: authUrl }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Return both the URL and the redirect_uri so the frontend knows what was registered
+      return new Response(JSON.stringify({ url: authUrl, redirect_uri: REDIRECT_URI }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── OAUTH CALLBACK ─────────────────────────────────────────────
+    // Called by the frontend after detecting code+realmId+state in the URL params.
     if (action === "callback") {
-      const body = await req.json();
       const { code, state, realmId } = body;
 
       if (!code || !realmId) {
@@ -60,10 +74,10 @@ serve(async (req) => {
         const decoded = JSON.parse(atob(state));
         userId = decoded.user_id;
       } catch {
-        return new Response(JSON.stringify({ error: "Invalid state" }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Invalid state parameter" }), { status: 400, headers: corsHeaders });
       }
 
-      // Exchange code for tokens
+      // Exchange authorization code for tokens
       const tokenRes = await fetch(QB_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -73,19 +87,21 @@ serve(async (req) => {
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: QB_REDIRECT_URI,
+          redirect_uri: REDIRECT_URI,   // must match exactly what was sent in get_auth_url
         }),
       });
 
       if (!tokenRes.ok) {
         const err = await tokenRes.text();
-        return new Response(JSON.stringify({ error: "Token exchange failed", detail: err }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Token exchange failed", detail: err }), {
+          status: 400, headers: corsHeaders,
+        });
       }
 
       const tokens = await tokenRes.json();
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-      // Fetch QB company info
+      // Fetch QB company info (non-fatal)
       let companyName = "";
       try {
         const companyRes = await fetch(
@@ -106,10 +122,12 @@ serve(async (req) => {
         .single();
 
       if (!profile?.organization_id) {
-        return new Response(JSON.stringify({ error: "No organization found for user" }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "No organization found for user" }), {
+          status: 400, headers: corsHeaders,
+        });
       }
 
-      // Upsert QB connection
+      // Upsert QB connection record
       const { error: upsertErr } = await supabase
         .from("quickbooks_connections")
         .upsert({
@@ -153,7 +171,9 @@ serve(async (req) => {
           .eq("organization_id", profile.organization_id);
       }
 
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── GET STATUS ─────────────────────────────────────────────────
@@ -171,7 +191,9 @@ serve(async (req) => {
         .single();
 
       if (!profile?.organization_id) {
-        return new Response(JSON.stringify({ connected: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ connected: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const { data: conn } = await supabase
@@ -180,7 +202,6 @@ serve(async (req) => {
         .eq("organization_id", profile.organization_id)
         .maybeSingle();
 
-      // Sync stats
       const { count: totalInvoices } = await supabase
         .from("invoices")
         .select("*", { count: "exact", head: true })
@@ -198,14 +219,12 @@ serve(async (req) => {
         company_id: conn?.company_id ?? null,
         status: conn?.status ?? null,
         expires_at: conn?.expires_at ?? null,
-        sync_stats: {
-          total: totalInvoices ?? 0,
-          synced: syncedInvoices ?? 0,
-        },
+        sync_stats: { total: totalInvoices ?? 0, synced: syncedInvoices ?? 0 },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: corsHeaders });
+
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: corsHeaders });
   }
