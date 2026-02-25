@@ -18,6 +18,8 @@ const QB_TOKEN_URL     = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bea
 // SITE_URL secret should be set to: https://dispatchboxai.com
 const SITE_URL = (Deno.env.get("SITE_URL") ?? "https://dispatchboxai.com").replace(/\/$/, "");
 const REDIRECT_URI = `${SITE_URL}/settings?tab=integrations`;
+console.log("[QB-DEBUG] SITE_URL env:", Deno.env.get("SITE_URL") ?? "(not set)");
+console.log("[QB-DEBUG] REDIRECT_URI:", REDIRECT_URI);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
