@@ -161,11 +161,6 @@ export default function Landing() {
                   Start Recovering Revenue <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/login">
-                <Button variant="hero-outline" size="lg" className="text-base px-8">
-                  View Demo
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
