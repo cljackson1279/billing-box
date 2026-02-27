@@ -86,10 +86,10 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="container flex h-16 items-center justify-between gap-4">
+          <div className="flex items-center gap-2 shrink-0">
             <BrandIcon size="md" />
-            <span className="font-bold text-lg text-foreground">DispatchBox<span className="text-gradient-brand">AI</span></span>
+            <span className="font-bold text-lg text-foreground whitespace-nowrap">DispatchBox<span className="text-gradient-brand">AI</span></span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
@@ -97,12 +97,12 @@ export default function Landing() {
             <a href="#compare" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Compare</a>
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isSignedIn ? (
               <>
                 <Link to="/dashboard">
-                  <Button variant="hero" size="sm">
-                    Go to Dashboard <ArrowRight className="h-3.5 w-3.5" />
+                  <Button variant="hero" size="sm" className="text-xs sm:text-sm whitespace-nowrap">
+                    <span className="hidden sm:inline">Go to </span>Dashboard <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
                 <Link to="/dashboard" className="flex items-center gap-2">
@@ -116,10 +116,10 @@ export default function Landing() {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost" size="sm">Log in</Button>
+                  <Button variant="ghost" size="sm" className="text-xs sm:text-sm px-2 sm:px-3">Log in</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button variant="hero" size="sm">
+                  <Button variant="hero" size="sm" className="text-xs sm:text-sm whitespace-nowrap">
                     Start Free <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
